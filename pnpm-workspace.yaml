@@ -1,0 +1,10 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "eval"
+
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "onnxruntime-node"
+  - "sharp"
+  - "protobufjs"

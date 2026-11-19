@@ -1,0 +1,19 @@
+{
+  "name": "@data-bi/generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.3.0",
+    "pg": "^8.13.1",
+    "pg-copy-streams": "^6.0.6"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "@types/pg-copy-streams": "^1.2.5"
+  }
+}

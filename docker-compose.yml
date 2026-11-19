@@ -1,0 +1,39 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: databi-postgres
+    environment:
+      POSTGRES_USER: databi
+      POSTGRES_PASSWORD: databi
+      POSTGRES_DB: databi
+    ports:
+      - "5433:5432"
+    volumes:
+      - databi-pg:/var/lib/postgresql/data
+    shm_size: 1g
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=768MB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - max_parallel_workers_per_gather=4
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - jit=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U databi -d databi"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  databi-pg:

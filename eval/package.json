@@ -1,0 +1,17 @@
+{
+  "name": "@data-bi/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "tsx --env-file-if-exists=../.env src/run.ts",
+    "typecheck": "tsc --noEmit",
+    "engine-check": "tsx --env-file-if-exists=../.env src/engine-check.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
+  }
+}

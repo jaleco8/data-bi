@@ -1,0 +1,28 @@
+{
+  "name": "data-bi",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Demo de plataforma de datos e-commerce: Postgres + pgvector, ETL multi-fuente, catálogo de métricas certificadas y chatbot con dashboards.",
+  "packageManager": "pnpm@10.8.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "db:up": "docker compose up -d && pnpm --filter @data-bi/etl run wait-db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && pnpm db:up && pnpm migrate",
+    "migrate": "pnpm --filter @data-bi/etl run migrate",
+    "gen": "pnpm --filter @data-bi/generator run gen --",
+    "etl": "pnpm --filter @data-bi/etl run etl",
+    "embed": "pnpm --filter @data-bi/etl run embed --",
+    "metrics:load": "pnpm --filter @data-bi/etl run metrics:load",
+    "setup": "pnpm migrate && pnpm gen --scale small && pnpm etl",
+    "dev:api": "pnpm --filter @data-bi/api run dev",
+    "dev:web": "pnpm --filter @data-bi/web run dev",
+    "eval": "pnpm --filter @data-bi/eval run eval --",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

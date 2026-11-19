@@ -1,0 +1,808 @@
+# =============================================================================
+# Catálogo de métricas certificadas · Mercadia (e-commerce ficticio)
+#
+# Fuente única de verdad: los dashboards oficiales y el chat usan EXACTAMENTE
+# estas definiciones. El modelo de lenguaje no escribe SQL para estas métricas:
+# elige métrica + periodo + agrupación + filtros y el backend arma la consulta.
+#
+# Convenciones
+#   unit:   usd | count | pct (fracción 0–1) | days | hours | score | ratio
+#   sources: lista de tablas mart que pueden calcular la métrica. El motor usa
+#            la primera que soporte todas las dimensiones/filtros pedidos.
+#   time:   sum  → la métrica se acumula en el periodo
+#           last → foto: se toma la última fecha disponible del periodo
+#           none → foto actual a la fecha de corte (sin filtro de fecha)
+# =============================================================================
+
+version: 3
+
+tables:
+  mart.orders:
+    date_column: order_date
+    dimensions:
+      pais: country_code
+      region: region
+      ciudad: city
+      canal: channel
+      dispositivo: device
+      tipo_cliente: customer_type
+      fuente: utm_source
+      medio: utm_medium
+      campana: utm_campaign
+      cupon: coupon_code
+      metodo_pago: payment_method
+      pasarela: payment_gateway
+      transportista: carrier
+      almacen: warehouse_code
+      estado_pedido: status
+  mart.order_lines:
+    date_column: order_date
+    dimensions:
+      pais: country_code
+      region: region
+      canal: channel
+      dispositivo: device
+      tipo_cliente: customer_type
+      medio: utm_medium
+      categoria: category_l1
+      subcategoria: category_l2
+      marca: brand
+      producto: product_name
+      codigo_producto: product_code
+      sku: sku
+  mart.returns:
+    date_column: requested_date
+    dimensions:
+      pais: country_code
+      categoria: category_l1
+      subcategoria: category_l2
+      marca: brand
+      producto: product_name
+      codigo_producto: product_code
+      motivo_devolucion: reason
+      estado_devolucion: status
+  mart.shipments:
+    date_column: shipped_date
+    dimensions:
+      pais: country_code
+      region: region
+      ciudad: city
+      transportista: carrier
+      almacen: warehouse_code
+      nivel_servicio: service_level
+  mart.inventory_snapshot:
+    date_column: snapshot_date
+    dimensions:
+      pais: country_code
+      almacen: warehouse_code
+      categoria: category_l1
+      subcategoria: category_l2
+      marca: brand
+      producto: product_name
+      codigo_producto: product_code
+      sku: sku
+  mart.web_traffic_daily:
+    date_column: date
+    dimensions:
+      pais: country_code
+      dispositivo_ga: device_category
+      fuente: source
+      medio: medium
+      campana: campaign
+      grupo_canal: channel_group
+  mart.marketing_daily:
+    date_column: date
+    dimensions:
+      pais: country_code
+      plataforma: platform
+      fuente: source
+      medio: medium
+      campana: campaign
+      grupo_canal: channel_group
+  mart.customers:
+    date_column: first_order_date
+    dimensions:
+      pais: country_code
+      region: region
+      ciudad: city
+      genero: gender
+      rango_edad: age_band
+      segmento_rfm: rfm_segment
+      nivel_lealtad: loyalty_tier
+      etapa_crm: crm_lifecycle_stage
+      cohorte: cohort_month
+  mart.reviews:
+    date_column: review_date
+    dimensions:
+      fuente_resena: review_source
+      pais: country_code
+      categoria: category_l1
+      subcategoria: category_l2
+      marca: brand
+      producto: product_name
+      codigo_producto: product_code
+      ubicacion: location_name
+      transportista: carrier
+      calificacion: rating
+  mart.support_tickets:
+    date_column: created_date
+    dimensions:
+      pais: country_code
+      canal_soporte: channel
+      categoria_ticket: category
+      prioridad: priority
+      estado_ticket: status
+      transportista: carrier
+  mart.nps:
+    date_column: response_date
+    dimensions:
+      pais: country_code
+      grupo_nps: nps_group
+  mart.payments:
+    date_column: txn_date
+    dimensions:
+      pais: country_code
+      metodo_pago: method
+      pasarela: gateway
+      codigo_fallo: failure_code
+
+dimensions:
+  pais: { label: País, description: "Código ISO del país del pedido (MX, CO, CL, PE, AR)." }
+  region: { label: Región / estado, description: "Estado, departamento o región de entrega." }
+  ciudad: { label: Ciudad, description: "Ciudad de entrega." }
+  canal: { label: Canal de venta, description: "web, app o marketplace." }
+  dispositivo: { label: Dispositivo, description: "desktop, mobile (web), ios, android (app) o marketplace." }
+  dispositivo_ga: { label: Dispositivo (GA4), description: "desktop, mobile o app según Google Analytics." }
+  tipo_cliente: { label: Tipo de cliente, description: "nuevo = primer pedido válido del cliente; recurrente = el resto." }
+  fuente: { label: Fuente de tráfico, description: "utm_source / session_source (google, facebook, email, (direct)…)." }
+  medio: { label: Medio, description: "utm_medium (organic, cpc, paid_social, crm, referral…)." }
+  campana: { label: Campaña, description: "utm_campaign / nombre de campaña." }
+  grupo_canal: { label: Grupo de canal, description: "Agrupación de marketing: Búsqueda orgánica, Búsqueda pagada, Social pagado, Email, Directo, Afiliados." }
+  plataforma: { label: Plataforma de anuncios, description: "google_ads, meta_ads, tiktok_ads o 'sin pauta'." }
+  cupon: { label: Cupón, description: "Código de cupón aplicado." }
+  metodo_pago: { label: Método de pago, description: "card, debit, wallet, bank_transfer, cash_voucher, bnpl." }
+  pasarela: { label: Pasarela de pago, description: "Proveedor que procesó el cobro." }
+  codigo_fallo: { label: Código de fallo, description: "Motivo de rechazo del cobro." }
+  transportista: { label: Transportista, description: "Empresa de última milla." }
+  almacen: { label: Almacén, description: "Centro de distribución que despacha." }
+  nivel_servicio: { label: Nivel de servicio, description: "standard o express." }
+  estado_pedido: { label: Estado del pedido, description: "payment_failed, cancelled, paid, shipped, delivered." }
+  categoria: { label: Categoría, description: "Categoría de primer nivel del catálogo." }
+  subcategoria: { label: Subcategoría, description: "Categoría de segundo nivel." }
+  marca: { label: Marca, description: "Marca del producto." }
+  producto: { label: Producto, description: "Nombre del producto." }
+  codigo_producto: { label: Código de producto, description: "Código interno del producto (P-xxxxxx)." }
+  sku: { label: SKU, description: "Variante vendible del producto." }
+  motivo_devolucion: { label: Motivo de devolución, description: "talla_incorrecta, defectuoso, llego_danado, llego_tarde, no_coincide_descripcion, cambio_de_opinion." }
+  estado_devolucion: { label: Estado de devolución, description: "requested, received, refunded, rejected." }
+  genero: { label: Género, description: "F, M, X o vacío (dato del CRM)." }
+  rango_edad: { label: Rango de edad, description: "Calculado a la fecha de corte desde el CRM." }
+  segmento_rfm: { label: Segmento RFM, description: "Campeón, Leal, Nuevo, Ocasional, En riesgo, Inactivo, Lead sin compra." }
+  nivel_lealtad: { label: Nivel de lealtad, description: "bronze, silver, gold, platinum (CRM)." }
+  etapa_crm: { label: Etapa CRM, description: "lead, customer, vip, churn_risk (CRM)." }
+  cohorte: { label: Cohorte, description: "Mes del primer pedido válido." }
+  fuente_resena: { label: Fuente de reseña, description: "producto (sitio) o google (Google Business Profile)." }
+  ubicacion: { label: Ubicación, description: "Punto de retiro / showroom en Google Business Profile." }
+  calificacion: { label: Calificación, description: "Estrellas de 1 a 5." }
+  canal_soporte: { label: Canal de soporte, description: "email, chat, whatsapp, phone." }
+  categoria_ticket: { label: Categoría de ticket, description: "retraso_entrega, devolucion, reembolso, producto_defectuoso, pago_rechazado…" }
+  prioridad: { label: Prioridad, description: "low, normal, high." }
+  estado_ticket: { label: Estado del ticket, description: "open, pending, solved, closed." }
+  grupo_nps: { label: Grupo NPS, description: "promotor (9-10), pasivo (7-8), detractor (0-6)." }
+
+metrics:
+  # ------------------------------------------------------------------ Ventas
+  - key: gmv
+    label: GMV (venta bruta)
+    domain: ventas
+    synonyms: [ventas, ventas brutas, venta bruta, facturación bruta, gross merchandise value]
+    unit: usd
+    description: >
+      Valor de la mercadería de pedidos con pago confirmado, neto de descuentos (de línea y cupón),
+      con IVA incluido y sin costo de envío. Incluye pedidos que luego se cancelaron o devolvieron.
+    sources:
+      - { table: mart.orders, expression: "SUM(gmv_usd)" }
+      - { table: mart.order_lines, expression: "SUM(gmv_usd)" }
+    time: sum
+    owner: Finanzas comerciales
+    refresh: diaria
+    notes: "Si alguien pide 'ventas' sin precisar, se usa GMV y se aclara la diferencia con ingresos netos."
+
+  - key: ingresos_netos
+    label: Ingresos netos
+    domain: ventas
+    synonyms: [ingreso neto, revenue, ventas netas, facturación neta]
+    unit: usd
+    description: >
+      Ingreso de pedidos válidos (pagados y no cancelados) sin IVA, neto de descuentos y menos los
+      reembolsos por devoluciones. Las devoluciones se imputan a la fecha del pedido original.
+    sources:
+      - { table: mart.orders, expression: "SUM(net_revenue_usd)" }
+      - { table: mart.order_lines, expression: "SUM(net_revenue_usd)" }
+    time: sum
+    owner: Finanzas comerciales
+    refresh: diaria
+
+  - key: margen_bruto
+    label: Margen bruto
+    domain: ventas
+    synonyms: [utilidad bruta, contribución]
+    unit: usd
+    description: Ingresos netos menos el costo de la mercadería vendida no devuelta (costo unitario del ERP).
+    sources:
+      - { table: mart.orders, expression: "SUM(gross_margin_usd)" }
+      - { table: mart.order_lines, expression: "SUM(gross_margin_usd)" }
+    time: sum
+    owner: Finanzas comerciales
+    refresh: diaria
+
+  - key: margen_bruto_pct
+    label: Margen bruto %
+    domain: ventas
+    synonyms: [porcentaje de margen, margen porcentual]
+    unit: pct
+    description: Margen bruto dividido por ingresos netos.
+    sources:
+      - { table: mart.orders, expression: "SUM(gross_margin_usd) / NULLIF(SUM(net_revenue_usd), 0)" }
+      - { table: mart.order_lines, expression: "SUM(gross_margin_usd) / NULLIF(SUM(net_revenue_usd), 0)" }
+    time: sum
+    owner: Finanzas comerciales
+    refresh: diaria
+
+  - key: pedidos
+    label: Pedidos válidos
+    domain: ventas
+    synonyms: [órdenes, pedidos, cantidad de pedidos, número de pedidos, compras]
+    unit: count
+    description: >
+      Pedidos con pago confirmado que no fueron cancelados. No incluye pagos fallidos ni cancelaciones.
+      Para contar todos los pedidos creados usar 'pedidos_creados'.
+    sources:
+      - { table: mart.orders, expression: "COUNT(*) FILTER (WHERE is_valid)" }
+      - { table: mart.order_lines, expression: "COUNT(DISTINCT order_id) FILTER (WHERE is_valid)" }
+    time: sum
+    owner: Operaciones comerciales
+    refresh: diaria
+
+  - key: pedidos_creados
+    label: Pedidos creados
+    domain: ventas
+    synonyms: [intentos de compra, checkouts completados, pedidos totales]
+    unit: count
+    description: Todos los pedidos creados en la tienda, incluidos pagos fallidos y cancelados.
+    sources:
+      - { table: mart.orders, expression: "COUNT(*)" }
+    time: sum
+    owner: Operaciones comerciales
+    refresh: diaria
+
+  - key: ticket_promedio
+    label: Ticket promedio (AOV)
+    domain: ventas
+    synonyms: [aov, valor promedio del pedido, gasto promedio por pedido]
+    unit: usd
+    description: GMV de pedidos válidos dividido por la cantidad de pedidos válidos.
+    sources:
+      - { table: mart.orders, expression: "SUM(gmv_usd) FILTER (WHERE is_valid) / NULLIF(COUNT(*) FILTER (WHERE is_valid), 0)" }
+    time: sum
+    owner: Operaciones comerciales
+    refresh: diaria
+
+  - key: unidades_vendidas
+    label: Unidades vendidas
+    domain: ventas
+    synonyms: [unidades, productos vendidos, items vendidos]
+    unit: count
+    description: Unidades en pedidos válidos (antes de devoluciones).
+    sources:
+      - { table: mart.order_lines, expression: "SUM(units) FILTER (WHERE is_valid)" }
+      - { table: mart.orders, expression: "SUM(units) FILTER (WHERE is_valid)" }
+    time: sum
+    owner: Operaciones comerciales
+    refresh: diaria
+
+  - key: descuentos
+    label: Descuentos otorgados
+    domain: ventas
+    synonyms: [promociones, rebajas, monto de cupones]
+    unit: usd
+    description: Descuentos de línea y cupones en pedidos válidos.
+    sources:
+      - { table: mart.orders, expression: "SUM(discount_usd) FILTER (WHERE is_valid)" }
+    time: sum
+    owner: Marketing
+    refresh: diaria
+
+  - key: tasa_cancelacion
+    label: Tasa de cancelación
+    domain: ventas
+    synonyms: [cancelaciones, pedidos cancelados %]
+    unit: pct
+    description: Pedidos cancelados después del pago sobre pedidos pagados.
+    sources:
+      - { table: mart.orders, expression: "COUNT(*) FILTER (WHERE is_cancelled)::numeric / NULLIF(COUNT(*) FILTER (WHERE is_paid), 0)" }
+    time: sum
+    owner: Operaciones comerciales
+    refresh: diaria
+
+  - key: clientes_compradores
+    label: Clientes compradores
+    domain: clientes
+    synonyms: [compradores, clientes únicos, clientes que compraron]
+    unit: count
+    description: Clientes distintos con al menos un pedido válido en el periodo.
+    sources:
+      - { table: mart.orders, expression: "COUNT(DISTINCT customer_key) FILTER (WHERE is_valid)" }
+    time: sum
+    owner: CRM
+    refresh: diaria
+
+  - key: clientes_nuevos
+    label: Clientes nuevos
+    domain: clientes
+    synonyms: [nuevos clientes, adquisición, primeras compras]
+    unit: count
+    description: Clientes cuyo primer pedido válido cae en el periodo.
+    sources:
+      - { table: mart.orders, expression: "COUNT(*) FILTER (WHERE is_valid AND is_first_order)" }
+    time: sum
+    owner: CRM
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Devoluciones
+  - key: tasa_devolucion
+    label: Tasa de devolución
+    domain: devoluciones
+    synonyms: [devoluciones %, porcentaje de devoluciones, return rate]
+    unit: pct
+    description: Unidades devueltas (no rechazadas) sobre unidades vendidas en pedidos válidos, por fecha del pedido.
+    sources:
+      - { table: mart.order_lines, expression: "SUM(returned_units) FILTER (WHERE is_valid)::numeric / NULLIF(SUM(units) FILTER (WHERE is_valid), 0)" }
+    time: sum
+    owner: Operaciones
+    refresh: diaria
+
+  - key: devoluciones
+    label: Solicitudes de devolución
+    domain: devoluciones
+    synonyms: [devoluciones, cantidad de devoluciones, returns]
+    unit: count
+    description: Solicitudes de devolución por fecha de solicitud (incluye rechazadas).
+    sources:
+      - { table: mart.returns, expression: "COUNT(*)" }
+    time: sum
+    owner: Operaciones
+    refresh: diaria
+
+  - key: monto_reembolsado
+    label: Monto reembolsado
+    domain: devoluciones
+    synonyms: [reembolsos, refunds]
+    unit: usd
+    description: Reembolsos efectivamente pagados por devoluciones, por fecha de solicitud.
+    sources:
+      - { table: mart.returns, expression: "SUM(refund_usd)" }
+    time: sum
+    owner: Finanzas
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Logística
+  - key: envios
+    label: Envíos despachados
+    domain: logistica
+    synonyms: [despachos, paquetes enviados]
+    unit: count
+    description: Envíos entregados al transportista, por fecha de despacho.
+    sources:
+      - { table: mart.shipments, expression: "COUNT(*)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+
+  - key: entregas_a_tiempo
+    label: Entregas a tiempo %
+    domain: logistica
+    synonyms: [puntualidad, on time delivery, cumplimiento de fecha prometida, entregas puntuales]
+    unit: pct
+    description: Envíos entregados en o antes de la fecha prometida sobre envíos entregados.
+    sources:
+      - { table: mart.shipments, expression: "AVG(is_on_time::int) FILTER (WHERE delivered_date IS NOT NULL)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+    notes: "Se mide por fecha de despacho. Los últimos ~7 días aparecen sesgados al alza porque solo incluyen envíos ya entregados (los atrasados siguen en tránsito)."
+
+  - key: otif
+    label: OTIF
+    domain: logistica
+    synonyms: [on time in full, entregas perfectas]
+    unit: pct
+    description: Envíos entregados a tiempo y sin incidencias (excepciones de tracking) sobre envíos entregados.
+    sources:
+      - { table: mart.shipments, expression: "AVG(is_otif::int) FILTER (WHERE delivered_date IS NOT NULL)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+
+  - key: tiempo_entrega_promedio
+    label: Tiempo de entrega promedio
+    domain: logistica
+    synonyms: [días de entrega, lead time de entrega, demora de entrega, tiempo de entrega]
+    unit: days
+    description: Días desde la creación del pedido hasta la entrega, promedio de envíos entregados.
+    sources:
+      - { table: mart.shipments, expression: "AVG(order_to_delivery_days)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+
+  - key: dias_retraso_promedio
+    label: Días de retraso promedio
+    domain: logistica
+    synonyms: [retraso promedio, atraso promedio]
+    unit: days
+    description: Promedio de días de retraso sobre la fecha prometida, solo envíos entregados tarde.
+    sources:
+      - { table: mart.shipments, expression: "AVG(late_days) FILTER (WHERE late_days > 0)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+
+  - key: costo_envio_promedio
+    label: Costo de envío promedio
+    domain: logistica
+    synonyms: [costo por envío, costo logístico por paquete]
+    unit: usd
+    description: Costo cobrado por el transportista por envío.
+    sources:
+      - { table: mart.shipments, expression: "AVG(cost_usd)" }
+    time: sum
+    owner: Logística
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Inventario
+  - key: tasa_quiebre_stock
+    label: Tasa de quiebre de stock
+    domain: inventario
+    synonyms: [quiebres, stockout, sin stock, agotados, faltantes]
+    unit: pct
+    description: >
+      SKU-almacén con demanda en los últimos 90 días y stock cero al cierre, sobre los SKU-almacén con demanda.
+      Foto de cierre de mes (últimos 12 meses) o a la fecha de corte.
+    sources:
+      - { table: mart.inventory_snapshot, expression: "COUNT(*) FILTER (WHERE is_stockout)::numeric / NULLIF(COUNT(*) FILTER (WHERE is_active_sku), 0)" }
+    time: last
+    owner: Planificación de inventario
+    refresh: mensual + foto de corte
+
+  - key: valor_inventario
+    label: Valor del inventario
+    domain: inventario
+    synonyms: [stock valorizado, inventario a costo, capital en inventario]
+    unit: usd
+    description: Unidades en stock por costo unitario del ERP, al cierre.
+    sources:
+      - { table: mart.inventory_snapshot, expression: "SUM(on_hand_value_usd)" }
+    time: last
+    owner: Planificación de inventario
+    refresh: mensual + foto de corte
+
+  - key: unidades_en_stock
+    label: Unidades en stock
+    domain: inventario
+    synonyms: [stock, existencias, inventario disponible]
+    unit: count
+    description: Unidades disponibles al cierre.
+    sources:
+      - { table: mart.inventory_snapshot, expression: "SUM(on_hand_units)" }
+    time: last
+    owner: Planificación de inventario
+    refresh: mensual + foto de corte
+
+  - key: dias_cobertura
+    label: Días de cobertura
+    domain: inventario
+    synonyms: [cobertura de inventario, days of supply, días de inventario]
+    unit: days
+    description: Stock al cierre dividido por la venta diaria promedio de los últimos 90 días (mediana por SKU-almacén activo).
+    sources:
+      - { table: mart.inventory_snapshot, expression: "percentile_cont(0.5) WITHIN GROUP (ORDER BY days_of_cover) FILTER (WHERE is_active_sku)" }
+    time: last
+    owner: Planificación de inventario
+    refresh: mensual + foto de corte
+
+  # ------------------------------------------------------------------ Analítica web (GA4)
+  - key: sesiones
+    label: Sesiones
+    domain: web
+    synonyms: [visitas, tráfico, sesiones web]
+    unit: count
+    description: Sesiones registradas por Google Analytics 4 (web y app).
+    sources:
+      - { table: mart.web_traffic_daily, expression: "SUM(sessions)" }
+    time: sum
+    owner: Analítica digital
+    refresh: diaria
+
+  - key: usuarios
+    label: Usuarios
+    domain: web
+    synonyms: [visitantes, usuarios únicos]
+    unit: count
+    description: Usuarios totales según GA4 (suma diaria; no deduplica entre días).
+    sources:
+      - { table: mart.web_traffic_daily, expression: "SUM(total_users)" }
+    time: sum
+    owner: Analítica digital
+    refresh: diaria
+
+  - key: tasa_conversion
+    label: Tasa de conversión
+    domain: web
+    synonyms: [conversión, cr, conversion rate, tasa de compra]
+    unit: pct
+    description: Compras registradas por GA4 sobre sesiones. No incluye marketplace.
+    sources:
+      - { table: mart.web_traffic_daily, expression: "SUM(purchases)::numeric / NULLIF(SUM(sessions), 0)" }
+    time: sum
+    owner: Analítica digital
+    refresh: diaria
+
+  - key: tasa_agregar_carrito
+    label: Tasa de agregado al carrito
+    domain: web
+    synonyms: [add to cart rate, agregados al carrito]
+    unit: pct
+    description: Eventos add_to_cart sobre sesiones (GA4).
+    sources:
+      - { table: mart.web_traffic_daily, expression: "SUM(add_to_carts)::numeric / NULLIF(SUM(sessions), 0)" }
+    time: sum
+    owner: Analítica digital
+    refresh: diaria
+
+  - key: abandono_checkout
+    label: Abandono de checkout
+    domain: web
+    synonyms: [abandono del checkout, abandono de pago, checkout abandonment]
+    unit: pct
+    description: 1 − compras / checkouts iniciados (GA4).
+    sources:
+      - { table: mart.web_traffic_daily, expression: "1 - SUM(purchases)::numeric / NULLIF(SUM(checkouts), 0)" }
+    time: sum
+    owner: Analítica digital
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Marketing
+  - key: inversion_publicitaria
+    label: Inversión publicitaria
+    domain: marketing
+    synonyms: [gasto en publicidad, ad spend, inversión en medios, gasto en anuncios, pauta]
+    unit: usd
+    description: Gasto reportado por Google Ads, Meta Ads y TikTok Ads.
+    sources:
+      - { table: mart.marketing_daily, expression: "SUM(spend_usd)" }
+    time: sum
+    owner: Marketing de performance
+    refresh: diaria
+
+  - key: roas
+    label: ROAS
+    domain: marketing
+    synonyms: [retorno de la inversión publicitaria, return on ad spend]
+    unit: ratio
+    description: >
+      Ingresos netos atribuidos por UTM (último clic) a campañas pagadas, divididos por el gasto de esas campañas.
+      Solo considera filas con plataforma de anuncios.
+    sources:
+      - { table: mart.marketing_daily, expression: "SUM(net_revenue_usd) / NULLIF(SUM(spend_usd), 0)", base_filter: "platform <> 'sin pauta'" }
+    time: sum
+    owner: Marketing de performance
+    refresh: diaria
+
+  - key: cac_pagado
+    label: CAC pagado
+    domain: marketing
+    synonyms: [cac, costo de adquisición, costo por cliente nuevo]
+    unit: usd
+    description: Gasto de campañas pagadas dividido por clientes nuevos atribuidos a esas campañas (último clic).
+    sources:
+      - { table: mart.marketing_daily, expression: "SUM(spend_usd) / NULLIF(SUM(new_customers), 0)", base_filter: "platform <> 'sin pauta'" }
+    time: sum
+    owner: Marketing de performance
+    refresh: diaria
+
+  - key: cac_combinado
+    label: CAC combinado
+    domain: marketing
+    synonyms: [blended cac, cac total]
+    unit: usd
+    description: Gasto publicitario total dividido por todos los clientes nuevos web/app (cualquier canal).
+    sources:
+      - { table: mart.marketing_daily, expression: "SUM(spend_usd) / NULLIF(SUM(new_customers), 0)" }
+    time: sum
+    owner: Marketing de performance
+    refresh: diaria
+
+  - key: cpc
+    label: Costo por clic (CPC)
+    domain: marketing
+    synonyms: [costo por click]
+    unit: usd
+    description: Gasto dividido por clics de las plataformas de anuncios.
+    sources:
+      - { table: mart.marketing_daily, expression: "SUM(spend_usd) / NULLIF(SUM(clicks), 0)", base_filter: "platform <> 'sin pauta'" }
+    time: sum
+    owner: Marketing de performance
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Clientes (foto a fecha de corte)
+  - key: clientes_frecuentes
+    label: Clientes frecuentes
+    domain: clientes
+    synonyms: [clientes leales, compradores frecuentes, clientes recurrentes activos]
+    unit: count
+    description: Clientes con 4 o más pedidos válidos en los últimos 365 días a la fecha de corte.
+    sources:
+      - { table: mart.customers, expression: "COUNT(*) FILTER (WHERE is_frequent)" }
+    time: none
+    owner: CRM
+    refresh: diaria
+
+  - key: clientes_activos
+    label: Clientes activos (90 días)
+    domain: clientes
+    synonyms: [base activa, clientes activos]
+    unit: count
+    description: Clientes con al menos un pedido válido en los últimos 90 días a la fecha de corte.
+    sources:
+      - { table: mart.customers, expression: "COUNT(*) FILTER (WHERE is_active_90d)" }
+    time: none
+    owner: CRM
+    refresh: diaria
+
+  - key: base_clientes
+    label: Base de clientes
+    domain: clientes
+    synonyms: [total de clientes, clientes registrados, contactos]
+    unit: count
+    description: Clientes unificados (tienda + CRM), incluye leads sin compra.
+    sources:
+      - { table: mart.customers, expression: "COUNT(*)" }
+    time: none
+    owner: CRM
+    refresh: diaria
+
+  - key: tasa_recompra
+    label: Tasa de recompra
+    domain: clientes
+    synonyms: [recompra, repeat rate, retención de clientes]
+    unit: pct
+    description: Porcentaje de compradores con 2 o más pedidos válidos, por cohorte (mes del primer pedido).
+    sources:
+      - { table: mart.customers, expression: "AVG(is_repeat::int) FILTER (WHERE is_buyer AND first_order_date IS NOT NULL)" }
+    time: sum
+    owner: CRM
+    refresh: diaria
+
+  - key: ltv_365
+    label: LTV a 12 meses
+    domain: clientes
+    synonyms: [ltv, valor de vida del cliente, customer lifetime value, clv]
+    unit: usd
+    description: Ingresos netos promedio por cliente en sus primeros 365 días. Solo cohortes con al menos 365 días de antigüedad.
+    sources:
+      - { table: mart.customers, expression: "AVG(ltv_365_usd)" }
+    time: sum
+    owner: CRM
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Reseñas
+  - key: calificacion_promedio
+    label: Calificación promedio
+    domain: resenas
+    synonyms: [rating, estrellas promedio, puntuación promedio, valoración]
+    unit: score
+    description: Promedio de estrellas (1–5). Incluye reseñas de producto del sitio y de Google; filtrar por fuente_resena para separarlas.
+    sources:
+      - { table: mart.reviews, expression: "AVG(rating)" }
+    time: sum
+    owner: Experiencia de cliente
+    refresh: diaria
+
+  - key: resenas
+    label: Cantidad de reseñas
+    domain: resenas
+    synonyms: [reseñas, opiniones, comentarios de clientes, reviews]
+    unit: count
+    description: Reseñas publicadas (producto + Google).
+    sources:
+      - { table: mart.reviews, expression: "COUNT(*)" }
+    time: sum
+    owner: Experiencia de cliente
+    refresh: diaria
+
+  - key: resenas_negativas_pct
+    label: Reseñas negativas %
+    domain: resenas
+    synonyms: [porcentaje de reseñas malas, reseñas de 1 y 2 estrellas]
+    unit: pct
+    description: Reseñas con 1 o 2 estrellas sobre el total.
+    sources:
+      - { table: mart.reviews, expression: "AVG((rating <= 2)::int)" }
+    time: sum
+    owner: Experiencia de cliente
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Soporte y NPS
+  - key: tickets
+    label: Tickets de soporte
+    domain: soporte
+    synonyms: [casos, reclamos, consultas de soporte, contactos a soporte]
+    unit: count
+    description: Tickets creados en la mesa de ayuda.
+    sources:
+      - { table: mart.support_tickets, expression: "COUNT(*)" }
+    time: sum
+    owner: Servicio al cliente
+    refresh: diaria
+
+  - key: tiempo_primera_respuesta
+    label: Tiempo de primera respuesta (mediana)
+    domain: soporte
+    synonyms: [frt, first response time, tiempo de respuesta]
+    unit: hours
+    description: Mediana de horas hasta la primera respuesta del agente.
+    sources:
+      - { table: mart.support_tickets, expression: "percentile_cont(0.5) WITHIN GROUP (ORDER BY first_response_hours)" }
+    time: sum
+    owner: Servicio al cliente
+    refresh: diaria
+
+  - key: tiempo_resolucion
+    label: Tiempo de resolución (mediana)
+    domain: soporte
+    synonyms: [tiempo de solución, resolution time]
+    unit: hours
+    description: Mediana de horas desde la creación hasta la resolución, tickets resueltos.
+    sources:
+      - { table: mart.support_tickets, expression: "percentile_cont(0.5) WITHIN GROUP (ORDER BY resolution_hours)" }
+    time: sum
+    owner: Servicio al cliente
+    refresh: diaria
+
+  - key: csat
+    label: CSAT
+    domain: soporte
+    synonyms: [satisfacción del cliente con soporte, satisfacción de atención]
+    unit: score
+    description: Promedio de la encuesta post-ticket (1–5).
+    sources:
+      - { table: mart.support_tickets, expression: "AVG(csat)" }
+    time: sum
+    owner: Servicio al cliente
+    refresh: diaria
+
+  - key: nps
+    label: NPS
+    domain: soporte
+    synonyms: [net promoter score, recomendación]
+    unit: score
+    description: "% promotores (9–10) − % detractores (0–6), escala −100 a 100."
+    sources:
+      - { table: mart.nps, expression: "100.0 * (AVG((score >= 9)::int) - AVG((score <= 6)::int))" }
+    time: sum
+    owner: Experiencia de cliente
+    refresh: diaria
+
+  # ------------------------------------------------------------------ Pagos
+  - key: tasa_fallo_pagos
+    label: Tasa de fallo de pagos
+    domain: pagos
+    synonyms: [pagos rechazados, rechazos de pago, fallos de cobro]
+    unit: pct
+    description: Intentos de cobro fallidos sobre intentos de cobro totales.
+    sources:
+      - { table: mart.payments, expression: "AVG((status = 'failed')::int)", base_filter: "kind = 'charge'" }
+    time: sum
+    owner: Finanzas / Pagos
+    refresh: diaria

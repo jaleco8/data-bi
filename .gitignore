@@ -1,0 +1,33 @@
+node_modules/
+dist/
+.next/
+.env
+*.log
+.cache/
+eval/reports/
+
+# Carpetas de herramientas de IA y configuración local (no forman parte del proyecto)
+.claude/
+.cloud/
+.codex/
+.cursor/
+.gemini/
+.windsurf/
+.aider*
+.cache/models/
+
+# Archivos de instrucciones y notas generados por IA (el README del proyecto sí se versiona)
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.cursorrules
+.windsurfrules
+.clinerules
+*.ai-notes.md
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

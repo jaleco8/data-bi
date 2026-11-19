@@ -1,0 +1,23 @@
+{
+  "name": "@data-bi/etl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "wait-db": "tsx --env-file-if-exists=../../.env src/wait-db.ts",
+    "migrate": "tsx --env-file-if-exists=../../.env src/migrate.ts",
+    "etl": "tsx --env-file-if-exists=../../.env src/etl.ts",
+    "metrics:load": "tsx --env-file-if-exists=../../.env src/load-metrics.ts",
+    "embed": "tsx --env-file-if-exists=../../.env src/embed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.2.4",
+    "pg": "^8.13.1",
+    "yaml": "^2.6.1",
+    "@data-bi/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
+  }
+}
